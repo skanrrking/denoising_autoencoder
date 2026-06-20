@@ -1,3 +1,12 @@
+"""
+Evaluate a trained checkpoint and save a visual comparison image.
+
+Flow:
+  1. Load saved weights
+  2. Run one test batch through the model
+  3. Save noisy / denoised / clean grid to outputs/evaluation.png
+"""
+
 import argparse
 from pathlib import Path
 
@@ -35,6 +44,7 @@ def main() -> None:
     device = get_device()
     amp_enabled = use_amp(device)
 
+    # Step 1: Restore model weights and the settings used during training.
     checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
     saved = checkpoint.get("config", {})
     config.dataset = saved.get("dataset", config.dataset)
@@ -51,6 +61,7 @@ def main() -> None:
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
+    # Step 2: Grab one batch, add noise, and reconstruct.
     clean, _ = next(iter(test_loader))
     clean = clean.to(device, non_blocking=True)
     noisy = add_gaussian_noise(clean, config.noise_factor)
@@ -64,6 +75,7 @@ def main() -> None:
     mse = nn.MSELoss()(denoised, clean).item()
     print(f"Test MSE: {mse:.6f}")
 
+    # Step 3: Save side-by-side visualization.
     save_reconstruction_grid(
         noisy[: args.num_samples],
         denoised[: args.num_samples],

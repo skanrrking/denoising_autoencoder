@@ -1,3 +1,14 @@
+"""
+Main training script.
+
+Flow:
+  1. Parse CLI overrides
+  2. Run preflight tests
+  3. Load clean dataset
+  4. Train denoising autoencoder
+  5. Save best checkpoint by validation loss
+"""
+
 import argparse
 import random
 
@@ -13,6 +24,7 @@ from src.training import evaluate, train_epoch
 
 
 def set_seed(seed: int) -> None:
+    """Make randomness reproducible across Python, NumPy, and PyTorch."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -31,6 +43,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    # Step 1: Load defaults, then apply any command-line overrides.
     args = parse_args()
     config = Config()
 
@@ -50,6 +63,7 @@ def main() -> None:
     amp_enabled = use_amp(device)
     scaler = torch.amp.GradScaler("cuda") if amp_enabled else None
 
+    # Step 2: Validate model architecture before touching real data.
     print("Running preflight tests...")
     run_preflight_tests(
         in_channels=config.in_channels,
@@ -58,6 +72,7 @@ def main() -> None:
     )
     print(f"Preflight tests passed. Device: {device} | AMP: {amp_enabled}")
 
+    # Step 3: Build dataloaders and model.
     config.ensure_dirs()
     train_loader, test_loader = get_dataloaders(
         dataset_name=config.dataset,
@@ -72,6 +87,7 @@ def main() -> None:
     best_val_loss = float("inf")
     checkpoint_path = config.checkpoint_dir / "best_model.pt"
 
+    # Step 4: Train epoch by epoch.
     for epoch in range(1, config.epochs + 1):
         train_loss = train_epoch(
             model=model,
@@ -97,6 +113,7 @@ def main() -> None:
             f"train_loss={train_loss:.6f} | val_loss={val_loss:.6f}"
         )
 
+        # Step 5: Keep only the best checkpoint.
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(

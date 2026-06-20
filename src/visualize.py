@@ -1,3 +1,5 @@
+"""Save a visual grid comparing noisy, denoised, and clean images."""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -11,6 +13,12 @@ def save_reconstruction_grid(
     output_path: Path,
     num_samples: int = 10,
 ) -> None:
+    """
+    Build a 3-row image grid:
+      row 0 = noisy input fed to the model
+      row 1 = model reconstruction
+      row 2 = clean ground-truth target
+    """
     num_samples = min(num_samples, noisy.size(0))
     is_color = noisy.size(1) == 3
     fig, axes = plt.subplots(3, num_samples, figsize=(num_samples * 2, 6))
